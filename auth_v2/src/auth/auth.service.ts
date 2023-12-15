@@ -20,10 +20,15 @@ export class AuthService {
 			throw new ForbiddenException("Credential Incorrect")
 		}
 		// compare password
+		const pwMatches = await argon.verify(user.hash, dto.password)
 		// if paswsword does not match, throw an error
+		if (!pwMatches) {
+			throw new ForbiddenException("Credential Incorrect")
+		}
 
 		//send back the user
-		return { msg:"I am signed in"};
+		delete user.hash
+		return user;
 	}
 
 	async signup(dto:AuthDto) {
