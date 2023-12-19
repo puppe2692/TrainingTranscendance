@@ -4,10 +4,13 @@ import { AuthDto } from "./dto/auth.dto";
 import * as argon from "argon2";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable({})
 export class AuthService {
-	constructor(private prismaService: PrismaModuleService, private jwt: JwtService) {}
+	constructor(private prismaService: PrismaModuleService, 
+				private jwt: JwtService,
+				private config: ConfigService) {} //ConfigService is used to get the JWT_SECRET value from the .env file
 	async signin(dto:AuthDto) {
 		// find the user by email in the database
 		const user = await this.prismaService.user.findUnique({
@@ -26,10 +29,19 @@ export class AuthService {
 		if (!pwMatches) {
 			throw new ForbiddenException("Credential Incorrect")
 		}
+		return this.signToken(user.id, user.email);
+	}
 
-		//send back the user
-		delete user.hash
-		return user;
+	async signToken(userId:number, email:string): Promise<{ access_token: string }> {
+		const payload = { // here payload is the data we want to store in the token
+			sub:userId,// here sub is used because it is the standard for the subject of the token
+			email,
+		}
+		const secret = this.config.get('JWT_SECRET')
+
+		const token = await this.jwt.signAsync(payload, {expiresIn: '15m', secret: secret}) // the fonction signAsync is used to sign the token
+	
+		return {access_token: token,};
 	}
 
 	async signup(dto:AuthDto) {
@@ -49,9 +61,7 @@ export class AuthService {
 			// } // this allows us to select only the fields we want to return
 		});
 
-		delete user.hash; // remove the hash from the user object
-		// return the saved user
-		return user;
+		return this.signToken(user.id, user.email);
 		} catch (error) {
 			if (error instanceof PrismaClientKnownRequestError) {
 				if (error.code === 'P2002') {

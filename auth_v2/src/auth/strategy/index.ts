@@ -1,0 +1,1 @@
+export * from './jwt.strategy' // this allows us to export the JwtStrategy class from the index.ts file which means that we can import it from the auth.module.ts file
