@@ -2,18 +2,28 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
+import { PrismaModuleService } from "src/prisma-module/prisma-module.service";
 
 @Injectable() //  allow to inject the JwtStrategy class into other classes but also to inject other classes into the JwtStrategy class
-export class JwtStrategy extends PassportStrategy(Strategy, 'jwt',) { // here we use 'jwt' as the name of the strategy
-	constructor(config: ConfigService) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt',) // here we use 'jwt' as the name of the strategy
+{
+	constructor(config: ConfigService, private prisma: PrismaModuleService)
+	{
 		super({
 			jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 			secretOrKey: config.get('JWT_SECRET'),
 		});
 	}
 
-	validate(payload: any) { // we use the validate method to extract the payload from the token this function is used by the guard
-		return payload;
+	async validate(payload: {sub: number, email: string}) // we use the validate method to extract the payload from the token this function is used by the guard
+	{ 
+		const user = await this.prisma.user.findUnique({
+			where: {
+				id: payload.sub,
+			},
+		});
+		delete user.hash;
+		return user;
 	}
 }
 
